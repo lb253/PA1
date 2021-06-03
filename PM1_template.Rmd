@@ -1,0 +1,123 @@
+---
+title: "RR_week2"
+date: "01/06/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(mice)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+data<- read.csv("activity.csv")
+```
+
+## Course Project 1  
+
+
+# What is mean total number of steps taken per day?
+
+
+total number of steps taken per day
+```{r}
+
+x<- sum(data$steps, na.rm = TRUE)
+x
+```
+
+```{r}
+
+data_day<- data%>%
+  group_by(date)%>%
+  summarise(sum_steps = sum(steps, na.rm = T))
+data_day$sum_steps<- as.numeric(data_day$sum_steps)
+                              
+ggplot(data_day, aes(x = sum_steps )) + geom_histogram( fill = 'steel blue')
+```
+
+mean and median of the total number of steps taken per day
+```{r}
+
+data%>%
+  summarize(median = median(steps, na.rm = T), mean = mean(steps, na.rm = T))
+```
+# What is the average daily activity pattern?
+
+```{r}
+
+data$date <- as.Date(data$date, format= "%Y-%m-%d")
+
+```
+
+```{r}
+data2<- data%>%
+  group_by(interval)%>%
+  summarise(avg = mean(steps, na.rm = T))
+
+ggplot(data2, aes(interval, avg))+geom_line()
+
+
+```
+5 minute interval who contains the maximum number of steps
+```{r}
+
+data2%>%
+  slice(which.max(avg))
+```
+# Imputing missing values
+sum of missing data
+```{r}
+sum(!complete.cases(data))
+```
+Filling the missing data thanks to the mice package.
+
+```{r}
+act<- data.frame(data)
+temp<- mice(act, m=5, method = "pmm", seed = 509)
+completed<- complete(temp, 1)
+ 
+```
+
+histogram with the completed dataset.
+```{r}
+comp<- data.frame(completed)
+completed2<- completed%>%
+  group_by(date)%>%
+  summarise(sum_step =  sum(steps))
+ggplot(data = completed2, aes( x = sum_step))+geom_histogram()
+
+```
+calculation of mean and median
+```{r}
+completed2%>%
+  summarise(mean= mean(sum_step), median = median(sum_step))
+```
+the mean and the median are now way higher than before. 
+
+#differences in activity patterns between weekdays and weekends
+
+```{r}
+#create new column with the different day of the week
+completed<- completed%>%
+  mutate(days = weekdays(date))
+
+#create another column and put either week day or week end depending on the day. 
+
+completed<- completed%>%
+  mutate(week_end = if_else(days == c("lundi","mardi","mercredi","jeudi","vendredi"), "week_day", "week_end"))
+```
+
+plot
+
+```{r}
+plot<- completed%>%
+  group_by(interval, week_end)%>%
+  summarise(avg = mean(steps, na.rm = T))
+
+ggplot(plot, aes(interval, avg))+geom_line()+facet_wrap("week_end")
+```
+
